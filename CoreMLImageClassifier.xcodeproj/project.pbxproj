@@ -29,6 +29,26 @@
 		D1D5AE2C2D6935B9002C5AC8 /* CoreMLImageClassifierUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CoreMLImageClassifierUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		D1D5AE512D6936B1002C5AC8 /* Exceptions for "CoreMLImageClassifierUITests" folder in "CoreMLImageClassifierUITests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"/Localized: MobileNetV2.mlmodel",
+			);
+			target = D1D5AE2B2D6935B9002C5AC8 /* CoreMLImageClassifierUITests */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
+		D1D5AE552D6936D3002C5AC8 /* Exceptions for "CoreMLImageClassifierUITests" folder in "Compile Sources" phase from "CoreMLImageClassifier" target */ = {
+			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
+			buildPhase = D1D5AE0E2D6935B8002C5AC8 /* Sources */;
+			membershipExceptions = (
+				"/Localized: MobileNetV2.mlmodel",
+			);
+		};
+/* End PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		D1D5AE142D6935B8002C5AC8 /* CoreMLImageClassifier */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
@@ -42,6 +62,10 @@
 		};
 		D1D5AE2F2D6935B9002C5AC8 /* CoreMLImageClassifierUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				D1D5AE552D6936D3002C5AC8 /* Exceptions for "CoreMLImageClassifierUITests" folder in "Compile Sources" phase from "CoreMLImageClassifier" target */,
+				D1D5AE512D6936B1002C5AC8 /* Exceptions for "CoreMLImageClassifierUITests" folder in "CoreMLImageClassifierUITests" target */,
+			);
 			path = CoreMLImageClassifierUITests;
 			sourceTree = "<group>";
 		};
