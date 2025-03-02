@@ -10,8 +10,17 @@ import SwiftUI
 @main
 struct CoreMLImageClassifierApp: App {
     var body: some Scene {
-        WindowGroup {
-            ContentView()
+        WindowGroup{
+            TabView {
+                ContentView()
+                    .tabItem{
+                        Label("Home", systemImage: "house.fill")
+                    }
+                VisionView()
+                    .tabItem{
+                        Label("Vision", systemImage: "photo")
+                    }
+            }
         }
     }
 }
