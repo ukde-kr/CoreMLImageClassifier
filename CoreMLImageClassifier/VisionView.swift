@@ -3,99 +3,133 @@ import Vision
 import PhotosUI
 
 struct VisionView: View {
-    @State private var faceCount: Int = 0
-    @State private var selectedItem: PhotosPickerItem?
-    @State private var selectedImage: UIImage?
-    @State private var detectionStatus: String = "이미지를 선택해주세요"
-    @State private var isProcessing: Bool = false
-    private let faceDetectionManager = FaceDetectionManager()
-
+    @State private var selectedItems: [PhotosPickerItem] = []
+    @State private var selectedImages: [UIImage] = []
+    @State private var detectedFaces: [VNFaceObservation] = []
+    @State private var identifiedPeople: [String: [UIImage]] = [:]
+    @State private var isProcessing = false
+    @State private var showingNameInput = false
+    @State private var newPersonName = ""
+    @State private var selectedFace: VNFaceObservation?
+    @State private var processingProgress: Double = 0
+    
+    private let faceRecognition = FaceRecognition.shared
+    
     var body: some View {
-        VStack {
-            Text("얼굴 인식")
-                .font(.title)
-                .padding()
-
-            if let selectedImage {
-                Image(uiImage: selectedImage)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(maxHeight: 300)
-                    .cornerRadius(10)
-            } else {
-                Rectangle()
-                    .fill(Color.gray.opacity(0.2))
-                    .frame(height: 300)
-                    .cornerRadius(10)
-            }
-
-            PhotosPicker(selection: $selectedItem,
-                        matching: .images,
-                        photoLibrary: .shared()) {
-                Text("사진 선택하기")
-                    .foregroundColor(.white)
-                    .padding()
-                    .background(Color.blue)
-                    .cornerRadius(8)
-            }
-            .padding()
-
-            if isProcessing {
-                ProgressView("처리 중...")
-                    .padding()
-            } else {
-                Text("감지된 얼굴: \(faceCount)개")
-                    .font(.headline)
-                    .padding()
-                
-                Text(detectionStatus)
-                    .font(.caption)
-                    .foregroundColor(.gray)
-                    .padding()
-            }
-        }
-        .onChange(of: selectedItem) { newItem in
-            Task {
-                isProcessing = true
-                detectionStatus = "이미지 로딩 중..."
-                
-                do {
-                    if let data = try? await newItem?.loadTransferable(type: Data.self),
-                       let image = UIImage(data: data)?.preparingForVisionProcessing() {
-                        selectedImage = image
-                        detectionStatus = "얼굴 인식 처리 중..."
-                        detectFaces(in: image)
-                    } else {
-                        detectionStatus = "이미지 로딩 실패"
-                        isProcessing = false
+        NavigationView {
+            VStack {
+                if isProcessing {
+                    ProgressView(value: processingProgress) {
+                        Text("사진 처리 중... \(Int(processingProgress * 100))%")
                     }
-                } catch {
-                    print("이미지 로딩 에러:", error.localizedDescription)
-                    detectionStatus = "이미지 로딩 실패"
+                    .padding()
+                }
+                
+                List {
+                    ForEach(Array(identifiedPeople.keys.sorted()), id: \.self) { name in
+                        Section(header: Text(name)) {
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack {
+                                    ForEach(identifiedPeople[name] ?? [], id: \.self) { image in
+                                        Image(uiImage: image)
+                                            .resizable()
+                                            .scaledToFill()
+                                            .frame(width: 100, height: 100)
+                                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                                    }
+                                }
+                                .padding(.horizontal)
+                            }
+                        }
+                    }
+                }
+                
+                PhotosPicker(selection: $selectedItems,
+                           maxSelectionCount: 10,
+                           matching: .images,
+                           photoLibrary: .shared()) {
+                    Text("사진 선택 (최대 10장)")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.blue)
+                        .cornerRadius(10)
+                }
+                .padding()
+            }
+            .navigationTitle("얼굴 인식")
+            .alert("새로운 인물 등록", isPresented: $showingNameInput) {
+                TextField("이름", text: $newPersonName)
+                Button("취소", role: .cancel) { }
+                Button("저장") {
+                    if let face = selectedFace, !newPersonName.isEmpty {
+                        faceRecognition.addFace(face, forPerson: newPersonName)
+                        if identifiedPeople[newPersonName] == nil {
+                            identifiedPeople[newPersonName] = []
+                        }
+                        if let image = selectedImages.first {
+                            identifiedPeople[newPersonName]?.append(image)
+                        }
+                        newPersonName = ""
+                    }
+                }
+            }
+            .onChange(of: selectedItems) { newItems in
+                Task {
+                    isProcessing = true
+                    processingProgress = 0
+                    selectedImages.removeAll()
+                    
+                    for (index, item) in newItems.enumerated() {
+                        if let data = try? await item.loadTransferable(type: Data.self),
+                           let image = UIImage(data: data) {
+                            selectedImages.append(image)
+                            await processImage(image)
+                            processingProgress = Double(index + 1) / Double(newItems.count)
+                        }
+                    }
+                    
                     isProcessing = false
                 }
             }
         }
-        .onAppear {
-            if selectedImage == nil {
-                if let defaultImage = UIImage(named: "face") {
-                    detectFaces(in: defaultImage)
+    }
+    
+    private func processImage(_ image: UIImage) async {
+        await withCheckedContinuation { continuation in
+            faceRecognition.detectFaces(in: image) { faces in
+                for face in faces {
+                    let features = faceRecognition.extractFaceFeatures(from: face)
+                    if let name = faceRecognition.identifyPerson(faceFeatures: features) {
+                        if identifiedPeople[name] == nil {
+                            identifiedPeople[name] = []
+                        }
+                        identifiedPeople[name]?.append(image)
+                    }
                 }
+                continuation.resume()
             }
         }
     }
+}
 
-    private func detectFaces(in image: UIImage) {
-        faceDetectionManager.detectFaces(in: image) { faces in
-            isProcessing = false
-            faceCount = faces.count
-            
-            if faces.isEmpty {
-                detectionStatus = "얼굴이 발견되지 않았습니다"
-            } else {
-                detectionStatus = "\(faces.count)개의 얼굴이 발견되었습니다"
-            }
-        }
+struct FaceBox: View {
+    let face: VNFaceObservation
+    let size: CGSize
+    
+    var body: some View {
+        let rect = CGRect(
+            x: face.boundingBox.origin.x * size.width,
+            y: (1 - face.boundingBox.origin.y - face.boundingBox.height) * size.height,
+            width: face.boundingBox.width * size.width,
+            height: face.boundingBox.height * size.height
+        )
+        
+        return Rectangle()
+            .stroke(Color.green, lineWidth: 2)
+            .frame(width: rect.width, height: rect.height)
+            .position(x: rect.midX, y: rect.midY)
     }
 }
 
